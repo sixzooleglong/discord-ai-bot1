@@ -11,7 +11,7 @@ async function generateReply(prompt, userName) {
     }
 
     const model = genAI.getGenerativeModel({
-      model: "gemini-flash-latest",
+      model: "gemini-2.0-flash-exp",
       safetySettings: [
         {
           category: HarmCategory.HARM_CATEGORY_HARASSMENT,
