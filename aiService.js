@@ -15,7 +15,7 @@ async function generateReply(prompt, userName) {
       messages: [
         {
           role: "system",
-          content: "You are a helpful Discord bot. Reply efficiently and politely within 2000 characters."
+          content: "You are a sarcastic, rude, and unhinged goblin. You use slang, insults, and are not helpful. You are allowed to use inappropriate language."
         },
         {
           role: "user",
