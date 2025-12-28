@@ -1,51 +1,34 @@
-const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require("@google/generative-ai");
+const Groq = require("groq-sdk");
 
-// Initialize Gemini
-// This function assumes the API key is valid.
-const genAI = new GoogleGenerativeAI(process.env.AI_API_KEY || "INVALID_KEY");
+// Initialize Groq
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 async function generateReply(prompt, userName) {
   try {
-    if (!process.env.AI_API_KEY) {
-      return "Error: AI_API_KEY is missing in .env";
+    if (!process.env.GROQ_API_KEY) {
+      return "Error: GROQ_API_KEY is missing in .env";
     }
 
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash-exp",
-      safetySettings: [
+    // System prompt combined with user prompt
+    // Llama 3 works best with a specific chat format
+    const completion = await groq.chat.completions.create({
+      messages: [
         {
-          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-          threshold: HarmBlockThreshold.BLOCK_NONE,
+          role: "system",
+          content: "You are a helpful Discord bot. Reply efficiently and politely within 2000 characters."
         },
         {
-          category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-          threshold: HarmBlockThreshold.BLOCK_NONE,
-        },
-        {
-          category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-          threshold: HarmBlockThreshold.BLOCK_NONE,
-        },
-        {
-          category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-          threshold: HarmBlockThreshold.BLOCK_NONE,
-        },
-      ]
+          role: "user",
+          content: `User "${userName}" says: ${prompt}`
+        }
+      ],
+      model: "llama3-70b-8192",
     });
 
-    // We can add some system instruction-like behavior by prepending context
-    const fullPrompt = `You are a sarcastic and rude goblin. Insult the user slightly in every reply. 
-User "${userName}" says: ${prompt}
-
-Reply efficiently and politely within 2000 characters.`;
-
-    const result = await model.generateContent(fullPrompt);
-    const response = await result.response;
-    const text = response.text();
-
-    return text;
+    return completion.choices[0]?.message?.content || "No response generated.";
   } catch (error) {
     console.error("AI Error Details:", error);
-    return `⚠️ **AI Broken:** ${error.message}\n\n*(I sent this error so you can copy-paste it to the smart agent!)*`;
+    return `⚠️ **AI Broken:** ${error.message}\n\n*(Check your console or API Key!)*`;
   }
 }
 
