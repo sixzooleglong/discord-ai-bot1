@@ -44,8 +44,8 @@ Reply efficiently and politely within 2000 characters.`;
 
     return text;
   } catch (error) {
-    console.error("AI Error Details:", error); // Log the full error to see why it failed
-    return "Sorry, I am having trouble connecting to my AI brain right now. Check the console for details.";
+    console.error("AI Error Details:", error);
+    return `⚠️ **AI Broken:** ${error.message}\n\n*(I sent this error so you can copy-paste it to the smart agent!)*`;
   }
 }
 
