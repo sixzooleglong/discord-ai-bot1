@@ -22,7 +22,7 @@ async function generateReply(prompt, userName) {
           content: `User "${userName}" says: ${prompt}`
         }
       ],
-      model: "llama3-70b-8192",
+      model: "llama-3.3-70b-versatile",
     });
 
     return completion.choices[0]?.message?.content || "No response generated.";
