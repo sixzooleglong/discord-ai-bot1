@@ -26,13 +26,34 @@ async function generateReply(prompt, userName, history = [], imageUrl = null) {
     if (imageUrl) {
         model = "meta-llama/llama-4-scout-17b-16e-instruct"; // Switch to Llama 4 Scout (Vision)
         
-        messages.push({
-            role: "user",
-            content: [
-                { type: "text", text: userContent },
-                { type: "image_url", image_url: { url: imageUrl } }
-            ]
-        });
+        try {
+            // OPTIMIZATION: Convert URL to Base64 to avoid Groq 404/Fetch errors
+            // The bot downloads it, then gives the DATA to Groq.
+            const imageResponse = await fetch(imageUrl);
+            if (!imageResponse.ok) throw new Error(`Failed to fetch image: ${ imageResponse.statusText } `);
+            
+            const arrayBuffer = await imageResponse.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            const base64Image = buffer.toString('base64');
+            const mimeType = imageResponse.headers.get('content-type') || 'image/jpeg';
+            const dataUrl = `data:${ mimeType }; base64, ${ base64Image } `;
+
+            messages.push({
+                role: "user",
+                content: [
+                    { type: "text", text: userContent },
+                    { type: "image_url", image_url: { url: dataUrl } }
+                ]
+            });
+        } catch (imgErr) {
+            console.error("Failed to convert image to base64:", imgErr);
+            // Fallback to text if download fails
+             messages.push({
+                role: "user",
+                content: userContent + " (Image download failed)"
+            });
+            model = "llama-3.3-70b-versatile";
+        }
     } else {
         messages.push({
             role: "user",
@@ -47,9 +68,29 @@ async function generateReply(prompt, userName, history = [], imageUrl = null) {
 
     return completion.choices[0]?.message?.content || "No response generated.";
   } catch (error) {
+    // FALLBACK: If Vision model fails, retry with text.
+    if (imageUrl && error.status === 400) {
+        console.log("Vision failed, retrying with Text only...");
+        try {
+            const fallbackCompletion = await groq.chat.completions.create({
+                messages: [
+                     { role: "system", content: "You are a sarcastic, rude, and unhinged goblin. You use slang, insults, and are not helpful. You are allowed to use inappropriate language. IMPORTANT: Do NOT use the user's name often. Stop repeating yourself." }, // Re-add system prompt
+                     ...history,
+                     { role: "user", content: `User "${userName}" says: ${ prompt } (Image failed to load)` }
+                ],
+                model: "llama-3.3-70b-versatile",
+            });
+            return fallbackCompletion.choices[0]?.message?.content + "\n*(Your image is broken, dummy.)*";
+        } catch (retryError) {
+             console.error("Fallback failed:", retryError);
+        }
+    }
+
     console.error("AI Error Details:", error);
-    return `⚠️ ** AI Broken:** ${ error.message } \n\n * (Check your console or API Key!)* `;
+    // Simple Error Message
+    return `⚠️ ** AI Error:** ${ error.message } `;
   }
 }
 
 module.exports = { generateReply };
+```
