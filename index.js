@@ -6,7 +6,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Web server to keep Render happy and allow UptimeRobot pings
-app.get('/', (req, res) => res.send('Friendly Bot is awake! 🤖✨'));
+app.get('/', (req, res) => res.send('Bot is staying alive!'));
 app.listen(port, () => console.log(`Stay-Alive server listening on port ${port}`));
 
 const client = new Client({
@@ -61,5 +61,11 @@ client.on(Events.MessageCreate, async message => {
         await message.reply("My apologies, I seem to be having a momentary disconnect.");
     }
 });
+
+// Login
+if (!process.env.DISCORD_TOKEN) {
+    console.error("Error: DISCORD_TOKEN is missing in .env");
+    process.exit(1);
+}
 
 client.login(process.env.DISCORD_TOKEN);
