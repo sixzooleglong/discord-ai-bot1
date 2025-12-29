@@ -24,7 +24,7 @@ async function generateReply(prompt, userName, history = [], imageUrl = null) {
 
     // Handle Vision (Image)
     if (imageUrl) {
-        model = "llama-3.2-11b-vision-preview"; // Switch to Vision Model
+        model = "meta-llama/llama-4-scout-17b-16e-instruct"; // Switch to Llama 4 Scout (Vision)
         
         messages.push({
             role: "user",
