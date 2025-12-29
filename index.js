@@ -40,8 +40,26 @@ client.on(Events.MessageCreate, async message => {
         const userId = message.author.id;
         if (!userHistory[userId]) userHistory[userId] = [];
 
-        // Generate reply with history
-        const reply = await generateReply(message.content, message.author.username, userHistory[userId]);
+        // Check for Images or GIFs
+        let imageUrl = null;
+
+        // 1. Direct Attachments (Uploads)
+        if (message.attachments.size > 0) {
+            const attachment = message.attachments.first();
+            if (attachment.contentType && attachment.contentType.startsWith('image/')) {
+                imageUrl = attachment.url;
+            }
+        }
+
+        // 2. Tenor / Giphy Links
+        if (!imageUrl && (message.content.match(/\.(jpeg|jpg|gif|png)$/i) || message.content.includes("tenor.com"))) {
+            if (message.content.match(/^https?:\/\/.*$/)) {
+                imageUrl = message.content;
+            }
+        }
+
+        // Generate reply with history AND image
+        const reply = await generateReply(message.content, message.author.username, userHistory[userId], imageUrl);
 
         // Update history (User msg + Bot reply)
         userHistory[userId].push({ role: "user", content: `User "${message.author.username}" says: ${message.content}` });
