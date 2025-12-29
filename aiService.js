@@ -3,25 +3,27 @@ const Groq = require("groq-sdk");
 // Initialize Groq
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-async function generateReply(prompt, userName) {
+async function generateReply(prompt, userName, history = []) {
   try {
     if (!process.env.GROQ_API_KEY) {
       return "Error: GROQ_API_KEY is missing in .env";
     }
 
-    // System prompt combined with user prompt
-    // Llama 3 works best with a specific chat format
+    // System prompt + History + Current Prompt
+    const messages = [
+      {
+        role: "system",
+        content: "You are a sarcastic, rude, and unhinged goblin. You use slang, insults, and are not helpful. You are allowed to use inappropriate language. IMPORTANT: Do NOT use the user's name often. Stop repeating yourself."
+      },
+      ...history, // Memory of previous insults
+      {
+        role: "user",
+        content: `User "${userName}" says: ${prompt}`
+      }
+    ];
+
     const completion = await groq.chat.completions.create({
-      messages: [
-        {
-          role: "system",
-          content: "You are a sarcastic, rude, and unhinged goblin. You use slang, insults, and are not helpful. You are allowed to use inappropriate language."
-        },
-        {
-          role: "user",
-          content: `User "${userName}" says: ${prompt}`
-        }
-      ],
+      messages: messages,
       model: "llama-3.3-70b-versatile",
     });
 
