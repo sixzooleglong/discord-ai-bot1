@@ -51,10 +51,29 @@ client.on(Events.MessageCreate, async message => {
             }
         }
 
-        // 2. Tenor / Giphy Links
-        if (!imageUrl && (message.content.match(/\.(jpeg|jpg|gif|png)$/i) || message.content.includes("tenor.com"))) {
-            if (message.content.match(/^https?:\/\/.*$/)) {
-                imageUrl = message.content;
+        // 2. Tenor / Giphy Links (Smart Extraction)
+        if (!imageUrl && message.content.match(/^https?:\/\/.*$/)) {
+            const url = message.content;
+
+            // Basic Image Link (ends in extension)
+            if (url.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
+                imageUrl = url;
+            }
+            // Tenor / Giphy Page - Need to extract the direct image source
+            else if (url.includes("tenor.com") || url.includes("giphy.com")) {
+                try {
+                    // Quick fetch to get the metadata image
+                    const response = await fetch(url);
+                    const html = await response.text();
+
+                    // Look for OpenGraph image tag
+                    const match = html.match(/<meta property="og:image" content="([^"]+)"/);
+                    if (match && match[1]) {
+                        imageUrl = match[1];
+                    }
+                } catch (err) {
+                    console.log("Error extracting GIF URL:", err);
+                }
             }
         }
 
