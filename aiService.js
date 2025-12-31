@@ -33,6 +33,12 @@ async function generateReply(prompt, userName, history = [], imageUrl = null) {
 
         const arrayBuffer = await imageResponse.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
+
+        // SIZE CHECK: If > 5MB, skip image to avoid 413 error
+        if (buffer.length > 5 * 1024 * 1024) {
+          throw new Error("Image is too large (over 5MB) for API.");
+        }
+
         const base64Image = buffer.toString('base64');
         const mimeType = imageResponse.headers.get('content-type') || 'image/jpeg';
         const dataUrl = `data:${mimeType};base64,${base64Image}`;
