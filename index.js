@@ -7,7 +7,10 @@ const port = process.env.PORT || 3000;
 
 // Web server to keep Render happy and allow UptimeRobot pings
 app.get('/', (req, res) => res.send('Bot is staying alive!'));
-app.listen(port, () => console.log(`Stay-Alive server listening on port ${port}`));
+const server = app.listen(port, () => console.log(`Stay-Alive server listening on port ${port}`));
+
+server.keepAliveTimeout = 120 * 1000;
+server.headersTimeout = 120 * 1000;
 
 const client = new Client({
     intents: [
