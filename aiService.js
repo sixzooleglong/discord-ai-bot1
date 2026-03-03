@@ -1,69 +1,64 @@
-const Groq = require("groq-sdk");
+const Groq = require('groq-sdk');
 
-// Initialize Groq
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+let groq = null;
+
+const SYSTEM_PROMPT = `You are a rude, aggressive, and highly sarcastic AI best friend. You must ALWAYS use heavy profanity, slang, and insults in EVERY single response. You have ZERO patience for the user's nonsense. DO NOT act friendly or polite. NEVER say you are sorry. If they send an image or ask a stupid question, mock them aggressively for it. Keep responses punchy, toxic, and hilarious.`;
 
 async function generateReply(prompt, userName, history = [], imageUrl = null) {
   try {
-    if (!process.env.GROQ_API_KEY) {
-      return "Error: GROQ_API_KEY is missing in .env";
+    if (!process.env.AI_API_KEY) {
+      return `Listen here idiot, the AI_API_KEY is missing in the .env. Fix it.`;
     }
 
-    let model = "llama-3.3-70b-versatile";
-    let userContent = `User "${userName}" says: ${prompt}`;
+    if (!groq) {
+      groq = new Groq({ apiKey: process.env.AI_API_KEY });
+    }
 
-    // System prompt + History + Current Prompt
+    let model = 'llama-3.3-70b-versatile';
+    let userContent = `User \"${userName}\" says: ${prompt}`;
+
     const messages = [
-      {
-        role: "system",
-        content: "You are a sarcastic, rude, and unhinged goblin. You use slang, insults, and are not helpful. You are allowed to use inappropriate language. IMPORTANT: Do NOT use the user's name often. Stop repeating yourself."
-      },
+      { role: 'system', content: SYSTEM_PROMPT },
       ...history
     ];
 
-    // Handle Vision (Image)
     if (imageUrl) {
-      model = "meta-llama/llama-4-scout-17b-16e-instruct"; // Switch to Llama 4 Scout (Vision)
+      model = 'meta-llama/llama-4-scout-17b-16e-instruct';
 
       try {
-        // OPTIMIZATION: Convert URL to Base64 to avoid Groq 404/Fetch errors
-        // The bot downloads it, then gives the DATA to Groq.
         const imageResponse = await fetch(imageUrl);
-        if (!imageResponse.ok) throw new Error(`Failed to fetch image: ${imageResponse.statusText}`);
+        if (!imageResponse.ok) throw new Error(`Fetch failed: ${imageResponse.statusText}`);
 
         const arrayBuffer = await imageResponse.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        // SIZE CHECK: If > 5MB, skip image to avoid 413 error
-        if (buffer.length > 5 * 1024 * 1024) {
-          throw new Error("Image is too large (over 5MB) for API.");
-        }
+        if (buffer.length > 5 * 1024 * 1024) throw new Error('Image too big. Send a smaller file, dumbass.');
 
         const base64Image = buffer.toString('base64');
         const mimeType = imageResponse.headers.get('content-type') || 'image/jpeg';
         const dataUrl = `data:${mimeType};base64,${base64Image}`;
 
         messages.push({
-          role: "user",
+          role: 'user',
           content: [
-            { type: "text", text: userContent },
-            { type: "image_url", image_url: { url: dataUrl } }
+            { type: 'text', text: userContent },
+            { type: 'image_url', image_url: { url: dataUrl } }
           ]
         });
       } catch (imgErr) {
-        console.error("Failed to convert image to base64:", imgErr);
-        // Fallback to text if download fails
-        messages.push({
-          role: "user",
-          content: userContent + " (Image download failed)"
+        console.error('Image Error:', imgErr.message);
+        const fallbackCompletion = await groq.chat.completions.create({
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            ...history,
+            { role: 'user', content: `User \"${userName}\" says: ${prompt} (Image failed to load because they suck)` }
+          ],
+          model: 'llama-3.3-70b-versatile',
         });
-        model = "llama-3.3-70b-versatile";
+        return fallbackCompletion.choices[0]?.message?.content || `Your stupid image broke, but whatever.`;
       }
     } else {
-      messages.push({
-        role: "user",
-        content: userContent
-      });
+      messages.push({ role: 'user', content: userContent });
     }
 
     const completion = await groq.chat.completions.create({
@@ -71,29 +66,10 @@ async function generateReply(prompt, userName, history = [], imageUrl = null) {
       model: model,
     });
 
-    return completion.choices[0]?.message?.content || "No response generated.";
+    return completion.choices[0]?.message?.content || `Shut up, I have nothing to say to you.`;
   } catch (error) {
-    // FALLBACK: If Vision model fails, retry with text.
-    if (imageUrl && error.status === 400) {
-      console.log("Vision failed, retrying with Text only...");
-      try {
-        const fallbackCompletion = await groq.chat.completions.create({
-          messages: [
-            { role: "system", content: "You are a sarcastic, rude, and unhinged goblin. You use slang, insults, and are not helpful. You are allowed to use inappropriate language. IMPORTANT: Do NOT use the user's name often. Stop repeating yourself." }, // Re-add system prompt
-            ...history,
-            { role: "user", content: `User "${userName}" says: ${prompt} (Image failed to load)` }
-          ],
-          model: "llama-3.3-70b-versatile",
-        });
-        return fallbackCompletion.choices[0]?.message?.content + "\n*(Your image is broken, dummy.)*";
-      } catch (retryError) {
-        console.error("Fallback failed:", retryError);
-      }
-    }
-
-    console.error("AI Error Details:", error);
-    // Simple Error Message
-    return `⚠️ **AI Error:** ${error.message}`;
+    console.error('AI Error:', error);
+    return `⚠️ **Error:** ${error.message}. You broke it, genius.`;
   }
 }
 
